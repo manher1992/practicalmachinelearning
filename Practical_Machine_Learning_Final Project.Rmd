@@ -114,9 +114,9 @@ predictionvalid <- predict(rb1, newdata = df_valid2, type = "class")
 ```{r GMB, echo=FALSE}
 
 set.seed(2018)
-gbm_tree_auto <- train(classe ~ ., data = x_train_new, method = "gbm")
+#gbm_tree_auto <- train(classe ~ ., data = x_train_new, method = "gbm")
 
-predict_gbm <- predict(gbm_tree_auto, newdata = x_test_new)
+#predict_gbm <- predict(gbm_tree_auto, newdata = x_test_new)
 
 cmrf_gbm <- confusionMatrix(predict_gbm, x_test_new$classe)
 

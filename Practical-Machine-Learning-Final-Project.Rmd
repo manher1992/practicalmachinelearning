@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(echo = TRUE)
 ```
 
 ## Background
@@ -30,12 +30,14 @@ The test data are available here:
 
 https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
 
-```{r Read the Data}
+```{r Read the Data, echo=TRUE}
 
 library(tidyverse)
 library(naniar)
 library(randomForest)
 library(caret)
+library(rpart)
+library(rattle)
 
 valid <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",na.strings=c("NA","#DIV/0!",""))
 train <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",na.strings=c("NA","#DIV/0!",""))
@@ -46,10 +48,13 @@ train <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-train
 
 #### Miss Map. As we can see, over 60 % of the data is missing, and will be dropped. 
 
-```{r Miss Map, echo=FALSE}
+```{r Miss Map, echo=TRUE}
 naniar::vis_miss(train,warn_large_data=FALSE)
 ```
-```{r Drop Missing, echo=FALSE}
+
+
+
+```{r Drop Missing, echo=TRUE}
 
 df <- train %>% mutate(set = "TRAIN", problem_id = "NA") %>% rbind(valid %>% mutate(set = "VALID", classe = "NA"))
 
@@ -65,7 +70,7 @@ df_y <- df %>% select(c("classe","set"))
 
 ## Split the data in test/training and valid set. Splitting the training data into two sets. 
 
-```{r Preprocessing, echo=FALSE}
+```{r Preprocessing, echo=TRUE}
 df_x_train <- df_x %>% filter(set == "TRAIN")
 df_y_train <- df_y %>% filter(set == "TRAIN")
 
@@ -95,41 +100,59 @@ df_valid2 <- df_valid2 %>% select(!contains(c("set","problem_id")))
 
 First Algorithm Random Forest
 
-## Random Forest 
+## Random Forest with 3-times Cross Validation
 
-```{r Random Forest, echo=FALSE}
+```{r Random Forest, echo=TRUE}
 
-rb1 <- randomForest(classe~ .,data=x_train_new)
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
 
+rb1 <- randomForest(classe~ .,data=x_train_new,trControl=controlRF)
+
+```
+
+## Checking the test on the training error. Because its in sample, the accuracy is very high. Need to test on the test set. 
+```{r echo=TRUE}
+predictionB0 <- predict(rb1, newdata = x_train_new, type = "class")
+cmrf_train <- confusionMatrix(predictionB0, x_train_new$classe)
+print(cmrf_train)
+```
+
+```{r echo=TRUE}
 predictionB1 <- predict(rb1, newdata = x_test_new, type = "class")
 cmrf <- confusionMatrix(predictionB1, x_test_new$classe)
-
-predictionvalid <- predict(rb1, newdata = df_valid2, type = "class")
-
-```
-### Accuracy : 0.9978
-
-## Now the GBM Algorithm
-
-```{r GMB, echo=FALSE}
-
-set.seed(2018)
-gbm_tree_auto <- train(classe ~ ., data = x_train_new, method = "gbm")
-
-predict_gbm <- predict(gbm_tree_auto, newdata = x_test_new)
-
-cmrf_gbm <- confusionMatrix(predict_gbm, x_test_new$classe)
-
-#predict_valid <- predict(gbm_tree_auto, newdata = df_valid2)
+print(cmrf)
+#predictionvalid <- predict(rb1, newdata = df_valid2, type = "class")
 
 ```
-## Accuracy : 0.9861. We choose the Random Forest because the Accuracy is higher. 
 
+
+### Accuracy : 0.9976, so we expect the out-of-sample error to be 0.0024.
+
+## Decision Trees
+
+```{r DC, echo=TRUE}
+
+set.seed(12321)
+DecTree <- rpart(classe ~ ., data=x_train_new, method="class")
+
+
+fancyRpartPlot(DecTree)
+
+```
+
+```{r Trees test, echo=TRUE}
+predictree <- predict(DecTree, x_test_new, type = "class")
+cmtree <- confusionMatrix(predictree, x_test_new$classe)
+print(cmtree)
+```
+
+## we will choose the Random Forrest.
 
 ## Now we use the Random Forest to predict the 20 Problem ids.
 
-```{r}
+```{r echo=TRUE}
 predictionvalid <- predict(rb1, newdata = df_valid2, type = "class")
+print(predictionvalid)
 
 ```
 
